@@ -43,6 +43,8 @@ public class ProtocoloCliente {
 	private static String localizacion;
 	private static final String AES = "AES";
 	private static final String BLOWFISH = "Blowfish";
+	private static final String BLOWFISH2 = "BLOWFISH";
+	
 	private static final String RSA = "RSA";
 	private static final String HMACSHA1 = "HMACSHA1";
 	private static final String HMACSHA256 = "HMACSHA256";
@@ -50,7 +52,7 @@ public class ProtocoloCliente {
 	private static final String HMACSHA512 = "HMACSHA512";
 	private static KeyPair keyPair;
 	private static PublicKey llavePublicaServ;
-	private final static String PADDING = "AES/ECB/PKCS5Padding/xor";
+	private final static String PADDING = "AES/ECB/PKCS5Padding";
 
 
 	public static void procesar(BufferedReader stdIn, BufferedReader pIn, PrintWriter pOut) throws IOException, NoSuchAlgorithmException, OperatorCreationException, CertificateException, ClassNotFoundException {
@@ -80,14 +82,17 @@ public class ProtocoloCliente {
 
 		String respuestaFinal = "ALGORITMOS:";
 
+		String algoritmoSimetrico = null;
 
 		int algSim = Integer.parseInt(stdIn.readLine());
 		if(algSim == 1)
 		{
 			respuestaFinal = respuestaFinal+ AES+":"+RSA+":";
+			algoritmoSimetrico = AES;
 		}else
 		{
 			respuestaFinal = respuestaFinal+ BLOWFISH+":"+RSA+":";
+			algoritmoSimetrico = BLOWFISH2;
 		}
 
 		System.out.println("Seleccione que algoritmo dese usar \n Para Cifrado HMAC \n 1) HmacSHA1 \n 2) HmacSHA256 \n 3) HmacSHA384 \n 4) HmacSHA512");
@@ -174,7 +179,7 @@ public class ProtocoloCliente {
 		}
 
 		byte[] descifrado = descifrarAsimetrico((Key)keyPair.getPrivate(), RSA, Base64.decode(fromServer));
-		SecretKey sK = new SecretKeySpec(descifrado, RSA);		
+		SecretKey sK = new SecretKeySpec(descifrado, algoritmoSimetrico);		
 
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
@@ -182,7 +187,6 @@ public class ProtocoloCliente {
 			System.out.println("Respuesta del Servidor C(K_SC,<reto>):" + fromServer);
 		}
 
-		System.out.println(fromServer);
 
 		byte[] descifradoConSecretKey = descifrarSimetrico(sK, Base64.decode(fromServer));
 
