@@ -57,7 +57,7 @@ public class Cliente {
 	}
 
 
-	public static void main(String[] args) throws IOException, NoSuchAlgorithmException, OperatorCreationException, CertificateException {
+	public static void main(String[] args) throws IOException, NoSuchAlgorithmException, OperatorCreationException, CertificateException, ClassNotFoundException {
 
 		Socket socket = null;
 		PrintWriter escritor = null;
