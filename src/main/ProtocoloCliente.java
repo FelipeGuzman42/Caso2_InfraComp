@@ -43,16 +43,17 @@ public class ProtocoloCliente {
 	private static String localizacion;
 	private static final String AES = "AES";
 	private static final String BLOWFISH = "Blowfish";
-	private static final String BLOWFISH2 = "BLOWFISH";
-	
 	private static final String RSA = "RSA";
 	private static final String HMACSHA1 = "HMACSHA1";
 	private static final String HMACSHA256 = "HMACSHA256";
 	private static final String HMACSHA384 = "HMACSHA384";
 	private static final String HMACSHA512 = "HMACSHA512";
 	private static KeyPair keyPair;
-	private static PublicKey llavePublicaServ;
-	private final static String PADDING = "AES/ECB/PKCS5Padding";
+	private static Key llavePublicaServ;
+	private static  String algoritmoSimetrico= "";
+	private static  String algoritmoAsimetrico= "";
+	
+	
 
 
 	public static void procesar(BufferedReader stdIn, BufferedReader pIn, PrintWriter pOut) throws IOException, NoSuchAlgorithmException, OperatorCreationException, CertificateException, ClassNotFoundException {
@@ -82,17 +83,19 @@ public class ProtocoloCliente {
 
 		String respuestaFinal = "ALGORITMOS:";
 
-		String algoritmoSimetrico = null;
 
 		int algSim = Integer.parseInt(stdIn.readLine());
 		if(algSim == 1)
 		{
 			respuestaFinal = respuestaFinal+ AES+":"+RSA+":";
 			algoritmoSimetrico = AES;
+			algoritmoAsimetrico = RSA;
 		}else
 		{
 			respuestaFinal = respuestaFinal+ BLOWFISH+":"+RSA+":";
-			algoritmoSimetrico = BLOWFISH2;
+			algoritmoSimetrico = BLOWFISH;
+			algoritmoAsimetrico = RSA;
+
 		}
 
 		System.out.println("Seleccione que algoritmo dese usar \n Para Cifrado HMAC \n 1) HmacSHA1 \n 2) HmacSHA256 \n 3) HmacSHA384 \n 4) HmacSHA512");
@@ -115,7 +118,7 @@ public class ProtocoloCliente {
 		}
 
 		//Recordar borrarlo
-		System.out.println("Se enviaron los algoritmos: "+respuestaFinal);
+		System.out.println("Se envió: "+respuestaFinal);
 		//Envia Algortimos que se van a usar
 		pOut.println(respuestaFinal);
 
@@ -133,7 +136,7 @@ public class ProtocoloCliente {
 		String certificadoEnString = Base64.toBase64String(certificadoEnBytes);//Parse del certificado a String
 
 		//Reccodar borrarlo
-		System.out.println("Se envió: "+certificadoEnString);
+		System.out.println("Se envió: <CERTIFICADO> ");
 
 		//Envia Cerificado que se van a usar
 		pOut.println(certificadoEnString);
@@ -148,7 +151,7 @@ public class ProtocoloCliente {
 		//Lee lo que llega por la red, corresponde al certificado
 		if((fromServer=pIn.readLine())!= null)
 		{
-			System.out.println("Respuesta del Servidor:" + fromServer);
+			System.out.println("Respuesta del Servidor: <CERTIFICADO>");
 		}
 
 		byte[] certificadoServ =  Base64.decode(fromServer);
@@ -175,59 +178,47 @@ public class ProtocoloCliente {
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
-			System.out.println("Respuesta del Servidor C(K_C+,K_SC):" + fromServer);
+			System.out.println("Respuesta del Servidor: C(K_C+,K_SC)");
 		}
 
-		byte[] descifrado = descifrarAsimetrico((Key)keyPair.getPrivate(), RSA, Base64.decode(fromServer));
-		SecretKey sK = new SecretKeySpec(descifrado, algoritmoSimetrico);		
+		byte[] descifrado = descifrar((Key)keyPair.getPrivate(), algoritmoAsimetrico, Base64.decode(fromServer));
+		SecretKey sK = new SecretKeySpec(descifrado, 0,descifrado.length ,algoritmoSimetrico);		
 
+		
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
-			System.out.println("Respuesta del Servidor C(K_SC,<reto>):" + fromServer);
+			System.out.println("Respuesta del Servidor: C(K_SC,<reto>)");
 		}
 
 
-		byte[] descifradoConSecretKey = descifrarSimetrico(sK, Base64.decode(fromServer));
+		byte[] descifradoConSecretKey = descifrar(sK, algoritmoSimetrico,Base64.decode(fromServer));
 
-		String texto = Base64.toBase64String(descifradoConSecretKey);
-		byte[] cifradoParaServidor = cifrarAsimetrico((Key)llavePublicaServ,RSA,texto);
-
-		pOut.println(Base64.toBase64String(cifradoParaServidor));
+		
+		byte[] cifradoParaServidor = cifrar(llavePublicaServ,algoritmoAsimetrico,descifradoConSecretKey);
+		String retoR = new String(Base64.encode(cifradoParaServidor));
+		
+		System.out.println("Se envió: C(K_S+,<reto>)");
+		pOut.println(retoR);
 
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
 			System.out.println("Respuesta del Servidor:" + fromServer);
 		}
+		
+		
+		
 	}
 
-
-	public static byte[] cifrarAsimetrico(Key llave, String algoritmo, String texto) {
-
-		byte[] textoCifrado;
-
-		try {
-			Cipher cifrador = Cipher.getInstance(algoritmo);
-			byte[] textoClaro = texto.getBytes();
-
-			cifrador.init(Cipher.ENCRYPT_MODE, llave);
-			textoCifrado = cifrador.doFinal(textoClaro);
-
-			return textoCifrado;
-		}catch (Exception e){
-			System.out.println("Exception: " + e.getMessage());
-			return null;
-		}
-	}
-
-	public static byte[] descifrarSimetrico(SecretKey llave, byte[] texto)
+	
+	public static byte[] cifrar(Key llave,String alg ,byte[] texto)
 	{
 		byte[] textoClaro;
 
 		try {
-			Cipher cifrador = Cipher.getInstance(PADDING);
-			cifrador.init(Cipher.DECRYPT_MODE, llave);
+			Cipher cifrador = Cipher.getInstance(alg);
+			cifrador.init(Cipher.ENCRYPT_MODE, llave);
 			textoClaro = cifrador.doFinal(texto);
 		}catch (Exception e) {
 			System.out.println("Exception: " + e.getMessage());
@@ -237,7 +228,8 @@ public class ProtocoloCliente {
 		return textoClaro;
 	}
 
-	public static byte[] descifrarAsimetrico(Key llave, String algoritmo, byte[] texto) {
+
+	public static byte[] descifrar(Key llave, String algoritmo, byte[] texto) {
 
 		byte[] textoClaro;
 
