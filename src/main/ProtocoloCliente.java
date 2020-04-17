@@ -75,12 +75,16 @@ public class ProtocoloCliente {
 			System.out.println("Respuesta del Servidor:" + fromServer);
 		}	
 
-
+		// El usuario ingresa los datos para el servidor
 		System.out.println("Ingrese identificacion:");
 		identificacion = stdIn.readLine();
 		System.out.println("Ingrese localizacion:");
 		localizacion = stdIn.readLine();
 
+		/* Inicia Etapa 1
+		 * El usuario selecciona los algoritmos para cifrar entre él y el servidor
+		 * Cifrado simétrico, asimétrico y HMAC
+		 */
 		System.out.println("Seleccione que algoritmo dese usar \n Para Cifrado Simetrico \n 1) AES \n 2) BlOWFISH");
 
 		String respuestaFinal = "ALGORITMOS:";
@@ -119,9 +123,9 @@ public class ProtocoloCliente {
 
 		}
 
-		//Recordar borrarlo
+		// Recordar borrarlo
 		System.out.println("Se envió: "+respuestaFinal);
-		//Envia Algortimos que se van a usar
+		// Envia Algortimos que se van a usar
 		pOut.println(respuestaFinal);
 
 		//Lee lo que llega por la red dice si hubo un error o no en la entrada con algotimos
@@ -131,7 +135,7 @@ public class ProtocoloCliente {
 		}
 
 
-		//Generar certificado
+		// Generar certificado de verificación del cliente
 		generarLlave(RSA);//Generar llaves
 		java.security.cert.X509Certificate certificado = gc(keyPair);
 		byte[] certificadoEnBytes = certificado.getEncoded( );
@@ -155,7 +159,8 @@ public class ProtocoloCliente {
 		{
 			System.out.println("Respuesta del Servidor: <CERTIFICADO>");
 		}
-
+		
+		//Se decodifica el certificado del cervidor y la llave publica
 		byte[] certificadoServ =  Base64.decode(fromServer);
 		CertificateFactory cf = CertificateFactory.getInstance("X509");
 		InputStream iS =  new ByteArrayInputStream(certificadoServ);
@@ -168,7 +173,6 @@ public class ProtocoloCliente {
 			System.out.println("Se envió: OK");
 			//Envian respuesta al servidor 
 			pOut.println("OK");
-
 		}else {
 			//Recordar Borrar
 			System.out.println("Se envió: ERROR");
@@ -176,27 +180,25 @@ public class ProtocoloCliente {
 			pOut.println("ERROR");
 		}
 
-
+		//Inicia Etapa 2
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
 			System.out.println("Respuesta del Servidor: C(K_C+,K_SC)");
 		}
-
+		//Descifrar la llave de cifrado simetrico con la llave privada del cliente
 		byte[] descifrado = descifrar((Key)keyPair.getPrivate(), algoritmoAsimetrico, Base64.decode(fromServer));
-		secretKey = new SecretKeySpec(descifrado, 0,descifrado.length ,algoritmoSimetrico);		
-
+		secretKey = new SecretKeySpec(descifrado, 0,descifrado.length ,algoritmoSimetrico);
 
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
 			System.out.println("Respuesta del Servidor: C(K_SC,<reto>)");
 		}
-
-
+		//Descifrar el reto con la llave de cifrado simetrico
 		byte[] descifradoConSecretKey = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
 
-
+		//Se cifra el reto con la llave publica del servidor
 		byte[] cifradoParaServidor = cifrar(llavePublicaServ,algoritmoAsimetrico,descifradoConSecretKey);
 		String retoR = new String(Base64.encode(cifradoParaServidor));
 
@@ -209,7 +211,9 @@ public class ProtocoloCliente {
 			System.out.println("Respuesta del Servidor:" + fromServer);
 		}
 
-
+		/* Inicia Etapa 3
+		 * Se cifra el id del Usuario que se pidió con la llava simetrica
+		 */
 		byte[] idUsuario = cifrarSim(secretKey,identificacion);
 		String idUsString = DatatypeConverter.printBase64Binary(idUsuario);
 		System.out.println("Se envió: C(K_SC,<"+identificacion+">");
@@ -219,17 +223,17 @@ public class ProtocoloCliente {
 		{
 			System.out.println("Respuesta del Servidor C(K_SC,<hhmm>)");
 		}
-		
+		//Descifrar la hora de respuesta del servidor asociada al id del usuario
 		byte[] horadescifrada = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
 		String horaString = DatatypeConverter.printBase64Binary(horadescifrada);
-		System.out.println("Hora recibida: "+horaString);
+		System.out.println("Hora recibida: "+horaString.charAt(0)+horaString.charAt(1)+":"+horaString.charAt(2)+horaString.charAt(3));
 		pOut.println("OK");
 		
 		System.out.println("Se envió: OK");
 		
 	}
 
-
+	// Método de cifrado asimetrico, con la llave publica del servidor
 	public static byte[] cifrar(Key llave,String alg ,byte[] texto)
 	{
 		byte[] textoClaro;
@@ -245,7 +249,7 @@ public class ProtocoloCliente {
 
 		return textoClaro;
 	}
-	
+	// Método de cifrado simetrico con la llave enviada del servidor
 	public static byte[] cifrarSim(SecretKey llave, String texto) {
 		byte[] textoCifrado;
 		
@@ -262,8 +266,7 @@ public class ProtocoloCliente {
 			return null;
 		}
 	}
-
-
+	// Método de descifrado para asimetrico y simetrico
 	public static byte[] descifrar(Key llave, String algoritmo, byte[] texto) {
 
 		byte[] textoClaro;
@@ -279,7 +282,7 @@ public class ProtocoloCliente {
 
 		return textoClaro;
 	}
-
+	// Método para generar llave basado en el algoritmo simetrico de tamaño 1024
 	public static void generarLlave(String algoritm) throws NoSuchAlgorithmException
 	{
 		KeyPairGenerator generator = KeyPairGenerator.getInstance(algoritm);
