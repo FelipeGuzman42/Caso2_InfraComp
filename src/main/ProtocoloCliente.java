@@ -61,7 +61,7 @@ public class ProtocoloCliente {
 	public static void procesar(BufferedReader stdIn, BufferedReader pIn, PrintWriter pOut) throws IOException, NoSuchAlgorithmException, OperatorCreationException, CertificateException, ClassNotFoundException {
 
 		//Lee del teclado
-		System.out.println("Escriba el mensaje para enviar: ");
+		System.out.println("Escriba el mensaje para enviar(HOLA para iniciar protocolo): ");
 		String fromUser = stdIn.readLine();
 
 		//Envía por la red
@@ -226,11 +226,20 @@ public class ProtocoloCliente {
 		//Descifrar la hora de respuesta del servidor asociada al id del usuario
 		byte[] horadescifrada = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
 		String horaString = DatatypeConverter.printBase64Binary(horadescifrada);
-		System.out.println("Hora recibida: "+horaString.charAt(0)+horaString.charAt(1)+":"+horaString.charAt(2)+horaString.charAt(3));
-		pOut.println("OK");
+		if(horaString!=null)
+		{
+			System.out.println("Hora recibida: "+horaString.charAt(0)+horaString.charAt(1)+":"+horaString.charAt(2)+horaString.charAt(3));
+			
+			pOut.println("OK");
+			
+			System.out.println("Se envió: OK");
+				
+		}else {
 		
-		System.out.println("Se envió: OK");
+		pOut.println("ERROR");
 		
+		System.out.println("Se envió: ERROR");
+		}
 	}
 
 	// Método de cifrado asimetrico, con la llave publica del servidor
