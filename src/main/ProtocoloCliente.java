@@ -52,8 +52,9 @@ public class ProtocoloCliente {
 	private static Key llavePublicaServ;
 	private static  String algoritmoSimetrico= "";
 	private static  String algoritmoAsimetrico= "";
-	
-	
+	private static SecretKey secretKey;
+
+
 
 
 	public static void procesar(BufferedReader stdIn, BufferedReader pIn, PrintWriter pOut) throws IOException, NoSuchAlgorithmException, OperatorCreationException, CertificateException, ClassNotFoundException {
@@ -182,9 +183,9 @@ public class ProtocoloCliente {
 		}
 
 		byte[] descifrado = descifrar((Key)keyPair.getPrivate(), algoritmoAsimetrico, Base64.decode(fromServer));
-		SecretKey sK = new SecretKeySpec(descifrado, 0,descifrado.length ,algoritmoSimetrico);		
+		secretKey = new SecretKeySpec(descifrado, 0,descifrado.length ,algoritmoSimetrico);		
 
-		
+
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
@@ -192,12 +193,12 @@ public class ProtocoloCliente {
 		}
 
 
-		byte[] descifradoConSecretKey = descifrar(sK, algoritmoSimetrico,Base64.decode(fromServer));
+		byte[] descifradoConSecretKey = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
 
-		
+
 		byte[] cifradoParaServidor = cifrar(llavePublicaServ,algoritmoAsimetrico,descifradoConSecretKey);
 		String retoR = new String(Base64.encode(cifradoParaServidor));
-		
+
 		System.out.println("Se envió: C(K_S+,<reto>)");
 		pOut.println(retoR);
 
@@ -206,12 +207,27 @@ public class ProtocoloCliente {
 		{
 			System.out.println("Respuesta del Servidor:" + fromServer);
 		}
+
+		byte[] idCifradoParaServidor = cifrar(secretKey,algoritmoSimetrico,Base64.decode(identificacion));
+
+		System.out.println("Se envió: C(K_SC,<"+identificacion+">)");	
+		pOut.println(idCifradoParaServidor);
+
+		//Lee lo que llega por la red
+		if((fromServer=pIn.readLine())!= null)
+		{
+			System.out.println("Respuesta del Servidor: C(K_SC,<hhmm>)");
+		}
+
+		byte[] descifrarFecha = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
 		
+		String respuesta = new String(Base64.encode(descifrarFecha));
 		
-		
+
+
 	}
 
-	
+
 	public static byte[] cifrar(Key llave,String alg ,byte[] texto)
 	{
 		byte[] textoClaro;
