@@ -24,6 +24,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.Subject;
+import javax.xml.bind.DatatypeConverter;
 
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -208,23 +209,24 @@ public class ProtocoloCliente {
 			System.out.println("Respuesta del Servidor:" + fromServer);
 		}
 
-		byte[] idCifradoParaServidor = cifrar(secretKey,algoritmoSimetrico,Base64.decode(identificacion));
 
-		System.out.println("Se envió: C(K_SC,<"+identificacion+">)");	
-		pOut.println(idCifradoParaServidor);
-
+		byte[] idUsuario = cifrarSim(secretKey,identificacion);
+		String idUsString = DatatypeConverter.printBase64Binary(idUsuario);
+		System.out.println("Se envió: C(K_SC,<"+identificacion+">");
+		pOut.println(idUsString);
 		//Lee lo que llega por la red
 		if((fromServer=pIn.readLine())!= null)
 		{
-			System.out.println("Respuesta del Servidor: C(K_SC,<hhmm>)");
+			System.out.println("Respuesta del Servidor C(K_SC,<hhmm>)");
 		}
-
-		byte[] descifrarFecha = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
 		
-		String respuesta = new String(Base64.encode(descifrarFecha));
+		byte[] horadescifrada = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
+		String horaString = DatatypeConverter.printBase64Binary(horadescifrada);
+		System.out.println("Hora recibida: "+horaString);
+		pOut.println("OK");
 		
-
-
+		System.out.println("Se envió: OK");
+		
 	}
 
 
@@ -242,6 +244,23 @@ public class ProtocoloCliente {
 		}
 
 		return textoClaro;
+	}
+	
+	public static byte[] cifrarSim(SecretKey llave, String texto) {
+		byte[] textoCifrado;
+		
+		try {
+			Cipher cifrador = Cipher.getInstance(algoritmoSimetrico);
+			byte[] textoClaro = texto.getBytes();
+			
+			cifrador.init(Cipher.ENCRYPT_MODE, llave);
+			textoCifrado = cifrador.doFinal(textoClaro);
+			
+			return textoCifrado;
+		} catch(Exception e) {
+			System.out.println("Excepcion: "+e.getMessage());
+			return null;
+		}
 	}
 
 
