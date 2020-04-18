@@ -225,9 +225,11 @@ public class ProtocoloCliente {
 		}
 		//Descifrar la hora de respuesta del servidor asociada al id del usuario
 		byte[] horadescifrada = descifrar(secretKey, algoritmoSimetrico,Base64.decode(fromServer));
+		
 		String horaString = DatatypeConverter.printBase64Binary(horadescifrada);
-		if(horaString!=null)
+		if(!horaString.isEmpty())
 		{
+			
 			System.out.println("Hora recibida: "+horaString.charAt(0)+horaString.charAt(1)+":"+horaString.charAt(2)+horaString.charAt(3));
 			
 			pOut.println("OK");
@@ -235,10 +237,8 @@ public class ProtocoloCliente {
 			System.out.println("Se envió: OK");
 				
 		}else {
-		
-		pOut.println("ERROR");
-		
-		System.out.println("Se envió: ERROR");
+			pOut.println("ERROR");	
+			System.out.println("Se envió: ERROR");
 		}
 	}
 
